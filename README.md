@@ -1,123 +1,101 @@
 # Unreal Association Doctor
 
-**检查并修复 Windows 下 Unreal 项目文件的打开方式。**
+**Epic 修不好 `.uproject` 文件关联？双击启动，按中文提示检查和修复。**
 
-Epic 提示 `Project files not associated`，点击修复又出现 `Couldn't update file associations.`？这个工具会寻找本机的 `UnrealVersionSelector.exe`，备份关联配置，再调用 Epic 自带的程序修复。
+适用于 Epic 启动器提示 `Project files not associated`，点击修复后出现 `Couldn't update file associations.`，或移动、重装启动器后，项目打开方式仍指向旧目录的情况。
 
-默认只检查，不修改系统。支持自定义安装目录和多个安装位置，不写死盘符或 UE 版本。
+[**下载 ZIP**](https://github.com/redtidev1918/unreal-association-doctor/archive/refs/heads/main.zip) · [常见问题](docs/TROUBLESHOOTING.md) · [反馈问题](https://github.com/redtidev1918/unreal-association-doctor/issues)
 
-> 已通过本机只读诊断、自定义目录和多候选测试。管理员修复尚未完成跨机器、跨版本验证；修复后仍需在启动器和实际项目中确认。
+## 三步使用
 
-## 适用哪些问题？
+### 1. 下载，解压，双击
 
-| 情况 | 能做什么 |
+下载上方 ZIP，右键选择“全部解压”，打开解压后的文件夹，双击 **`Start.cmd`**。
+
+请完整保留文件夹中的文件，不要在压缩包里直接运行，也不要只复制 `Start.cmd`。
+
+### 2. 先检查，再修复
+
+在中文菜单中输入数字，然后按回车：
+
+| 输入 | 操作 |
 | --- | --- |
-| Epic 反复要求修复 `.uproject` 关联 | 检查覆盖配置和打开命令，尝试重建关联 |
-| 移动或重装后，关联仍指向旧路径 | 发现当前安装位置，重新注册 |
-| 双击 `.uproject` 无法打开 | 检查打开方式；引擎缺失或编译问题需要另行处理 |
-| 装了多个引擎或启动器 | 列出发现的工具，由你明确选择 |
-| 项目列表为空、编译失败、引擎版本不匹配 | 不属于本工具直接修复的范围 |
+| **1** | 检查当前关联和安装路径，不修改系统 |
+| **2** | 备份配置并修复 |
+| **3** | 打开备份文件夹 |
+| **4** | 打开常见问题说明 |
+| **0** | 退出 |
 
-## 快速开始
+第一次使用先选 **1**。需要修复时选 **2**，在 Windows 管理员权限提示中选择“是”，然后在新打开的窗口按提示输入 **Y** 确认。
 
-### 推荐：双击启动，无需输入命令
+如果找到多个关联工具，向导会让你选择编号；如果没有找到，会提示你填写 `UnrealVersionSelector.exe` 的完整路径。修复前请关闭之前留下的关联修复或报错窗口。
 
-1. 点击 [下载 ZIP](https://github.com/redtidev1918/unreal-association-doctor/archive/refs/heads/main.zip)，**完整解压**，不要在压缩包内直接运行。
-2. 双击 **`Start.cmd`**，看到中文菜单后输入 **1** 检查问题。
-3. 输入 **2** 修复；Windows 请求管理员权限时选择“是”，在新窗口按提示确认。多个安装会让你选择，不会乱选版本。
-4. 看到“Windows 文件关联检查已通过”后，完整退出并重新打开 Epic，再双击项目验证。
+### 3. 重启 Epic，打开项目验证
 
-菜单 **3** 可以打开备份目录，**4** 打开排错说明，**0** 退出。窗口会保留错误信息，不会一闪而过。修复不会自动关闭你的项目或启动器。
+看到 **“Windows 文件关联检查已通过”** 后：
 
-如果双击提示禁止运行脚本或文件被阻止，参见[脚本运行问题](docs/TROUBLESHOOTING.md#powershell-不允许运行脚本)。受组织管理的电脑请遵循管理员策略。
+1. 从系统托盘完全退出 Epic，再重新打开。
+2. 进入“虚幻引擎 → 库”，确认不再提示关联错误。
+3. 双击一个已知正常的 `.uproject`，确认可以使用预期引擎打开。
 
-### 命令行方式（进阶）
+工具检查通过代表 Windows 的关联配置符合预期；启动器和项目是否恢复正常，需要通过这两处实际操作确认。
 
-需要 **Windows、64 位 Windows PowerShell 5.1 或 PowerShell 7**，以及已经安装的 Epic 关联工具。不会自动下载安装 Unreal Engine。
+## 它会做什么？
 
-### 1. 下载并打开目录
+工具会寻找本机安装的关联程序，检查当前打开路径和用户覆盖配置，**先备份，再调用 Epic 自带的 `UnrealVersionSelector.exe` 修复**。支持自定义盘符和多个安装位置，不写死 UE 版本号。
 
-在仓库页点击 **Code → Download ZIP**，解压到容易找到的目录。也可以使用 Git：
+修改范围是 Windows 文件关联。项目文件、资源和项目所选引擎版本不会被修改，已有的项目和启动器也不会被自动关闭。
+
+## 遇到问题怎么办？
+
+| 现象 | 处理方法 |
+| --- | --- |
+| 双击后提示禁止运行脚本或文件被阻止 | 查看[脚本运行说明](docs/TROUBLESHOOTING.md#powershell-不允许运行脚本)；受组织管理的电脑请联系管理员 |
+| 找不到 `UnrealVersionSelector.exe` | 检查 Epic 安装目录中的 `Launcher\Engine\Binaries\Win64`；程序缺失时，本工具不会自动下载补齐 |
+| 修复提示还有程序在运行 | 先处理旧修复窗口，再重试；不要连续开启多个修复实例 |
+| 显示红色错误或长时间没有完成 | 保留完整报错，选 **4** 查看对照表；选 **3** 查看本次备份和报告 |
+| 检查通过，但 Epic 仍报错 | 完整退出并重启 Epic，再选 **1** 重新检查；反馈时说明报错是在什么操作之后出现的 |
+| 使用 PowerToys 后问题再次出现 | 查看 [Monaco 预览冲突说明](docs/TROUBLESHOOTING.md#powertoys-一定有冲突吗)；安装了 PowerToys 不代表一定有冲突 |
+
+备份默认位于 `%LOCALAPPDATA%\UnrealAssociationDoctor\Backups`。每次修复使用独立目录。**目前没有一键回滚**，需要恢复时请先阅读[恢复说明](docs/TECHNICAL.md#恢复说明)。
+
+## 使用条件与适用范围
+
+- 双击入口使用 Windows 自带的 **64 位 Windows PowerShell 5.1**；修复需要管理员权限。
+- 自动修复只执行具有有效 Epic Games 签名的关联程序。源码构建可用于诊断，未签名程序不会被自动执行。
+- 本工具处理文件关联，不负责安装引擎、修复项目编译错误，或解决“我的工程”列表为空等其他问题。
+- 已测试中文检测菜单、脚本语法、只读诊断、自定义目录发现和多候选选择。管理员修复尚未完成跨机器、跨版本验证。
+
+## 命令行使用
+
+习惯终端的用户可以在仓库目录中运行以下命令。核心脚本支持 64 位 Windows PowerShell 5.1 或 PowerShell 7。
 
 ```powershell
-git clone https://github.com/redtidev1918/unreal-association-doctor.git
-```
-
-公开仓库可直接下载，无需 GitHub 账号。
-
-从开始菜单打开 **Windows PowerShell**（不要选名称带 `x86` 的版本），进入解压或克隆后的目录。下面是示例，请换成你的实际路径：
-
-```powershell
-Set-Location 'D:\Tools\unreal-association-doctor-main'
-```
-
-### 2. 先诊断
-
-```powershell
+# 只检查
 .\Repair-UnrealAssociation.ps1
-```
 
-输出是 JSON 格式，先看下面几项即可：
-
-| 字段 | 如何理解 |
-| --- | --- |
-| `Candidates` | 找到的关联工具路径；空列表表示未找到 |
-| `Selected` | 选中的工具；多个候选时通常为 `null`，需要明确指定 |
-| `Before.TargetExists` | 当前打开命令指向的文件是否存在；`false` 需要进一步检查 |
-| `Before.UserOverrides` | 当前用户的覆盖配置；存在覆盖不代表一定有冲突 |
-
-诊断时三个 `Verified` 字段均为 `false`，表示**没有执行对应验证**，不代表三项都坏了。
-
-若提示禁止运行脚本，参见[脚本运行问题](docs/TROUBLESHOOTING.md#powershell-不允许运行脚本)。
-
-### 3. 修复
-
-关闭已有的 `UnrealVersionSelector` 报错窗口。从开始菜单右键 **Windows PowerShell → 以管理员身份运行**，再次进入仓库目录，然后执行：
-
-```powershell
+# 修复：请在管理员 PowerShell 中运行
 .\Repair-UnrealAssociation.ps1 -Mode Repair
-```
 
-工具会先备份，再将需要移开的用户配置改名保留。它不修改 `.uproject` 内容、引擎版本或项目资源。
+# 补充安装目录，帮助查找
+.\Repair-UnrealAssociation.ps1 -SearchRoot 'E:\Tools\Epic Games'
 
-提示没有唯一候选时，按下方“指定安装位置”操作。出现红色错误时，查看[报错对照表](docs/TROUBLESHOOTING.md)，不要反复启动修复程序。
-
-### 4. 判断是否修好
-
-1. 输出显示 `RegistryVerified: true`：Windows 关联检查通过。
-2. 从系统托盘完整退出 Epic，再打开“虚幻引擎 → 库”，确认不再提示关联错误。
-3. 双击一个已知能使用的 `.uproject`，确认用预期引擎打开。
-
-后两步需要你操作。工具不会打开项目，所以 `LauncherVerified` 和 `ProjectOpenVerified` 保持 `false`。**只有退出码 `0`，不代表整个问题已经解决。**
-
-## 指定安装位置
-
-工具检查运行中的启动器、Epic 注册表、安装清单、现有关联和常见目录。找不到时，提供安装根目录；这不会递归扫描整个硬盘：
-
-```powershell
-.\Repair-UnrealAssociation.ps1 -SearchRoot 'E:\Tools\Epic Games', 'F:\UE_Source'
-```
-
-多个候选时，从 `Candidates` 选择实际使用的启动器所附带的 exe，明确指定：
-
-```powershell
+# 明确指定关联工具
 .\Repair-UnrealAssociation.ps1 -Mode Repair -SelectorPath 'E:\Tools\Epic Games\Launcher\Engine\Binaries\Win64\UnrealVersionSelector.exe'
 ```
 
-这里选择的是关联工具，不是把所有项目切换到某个 UE 版本。自动修复要求有效的 Epic Games 签名；未签名源码构建可以诊断，但不能由本工具自动执行。
+命令行输出为 JSON。诊断模式中的验证字段为 `false`，表示尚未执行修复验证；修复后 `RegistryVerified: true` 表示关联检查通过。`LauncherVerified` 和 `ProjectOpenVerified` 不会自动设为 true，仍需手动确认。
 
-## 备份与进一步排查
+## 技术资料
 
-备份默认保存在 `%LOCALAPPDATA%\UnrealAssociationDoctor\Backups`，每次修复使用独立目录。成功输出中的 `Backup` 给出具体位置。
+- [常见问题与报错对照表](docs/TROUBLESHOOTING.md)
+- [参数、实现流程、备份与恢复](docs/TECHNICAL.md)
+- [实际排查记录与社区来源](docs/CASE-STUDY.md)
 
-- [常见问题](docs/TROUBLESHOOTING.md)：权限、工具缺失、超时、PowerToys、修复后仍报错。
-- [技术说明与恢复方法](docs/TECHNICAL.md)：参数、发现规则、备份文件和验证范围。
-- [排查记录与社区依据](docs/CASE-STUDY.md)：已经确认的事实与尚未验证的部分。
-
-## 开发与测试
+运行测试：
 
 ```powershell
 .\tests\Smoke.ps1
 ```
 
-测试检查语法、只读诊断、自定义目录发现、多候选和明确选择。只创建并清理临时测试文件，不执行关联修复或修改真实注册表。
+测试不执行系统关联修复，只创建并清理临时测试文件。
