@@ -24,6 +24,7 @@
 | **2** | 备份配置并修复 |
 | **3** | 打开备份文件夹 |
 | **4** | 打开常见问题说明 |
+| **5** | Epic 仍报错：收集诊断报告（不修改关联） |
 | **0** | 退出 |
 
 第一次使用先选 **1**。需要修复时选 **2**，在 Windows 管理员权限提示中选择“是”，然后在新打开的窗口按提示输入 **Y** 确认。
@@ -54,7 +55,7 @@
 | 找不到 `UnrealVersionSelector.exe` | 检查 Epic 安装目录中的 `Launcher\Engine\Binaries\Win64`；程序缺失时，本工具不会自动下载补齐 |
 | 修复提示还有程序在运行 | 先处理旧修复窗口，再重试；不要连续开启多个修复实例 |
 | 显示红色错误或长时间没有完成 | 保留完整报错，选 **4** 查看对照表；选 **3** 查看本次备份和报告 |
-| 检查通过，但 Epic 仍报错 | 完整退出并重启 Epic，再选 **1** 重新检查；反馈时说明报错是在什么操作之后出现的 |
+| 检查通过，但 Epic 仍报错 | 关联已经正确时选 **2** 不会再修改配置（`SkippedAlreadyConfigured`）。先双击 `.uproject` 看能否打开，再选 **5** 收集报告 |
 | 使用 PowerToys 后问题再次出现 | 查看 [Monaco 预览冲突说明](docs/TROUBLESHOOTING.md#powertoys-一定有冲突吗)；安装了 PowerToys 不代表一定有冲突 |
 
 备份默认位于 `%LOCALAPPDATA%\UnrealAssociationDoctor\Backups`。每次修复使用独立目录。**目前没有一键回滚**，需要恢复时请先阅读[恢复说明](docs/TECHNICAL.md#恢复说明)。
@@ -84,7 +85,9 @@
 .\Repair-UnrealAssociation.ps1 -Mode Repair -SelectorPath 'E:\Tools\Epic Games\Launcher\Engine\Binaries\Win64\UnrealVersionSelector.exe'
 ```
 
-命令行输出为 JSON。诊断模式中的验证字段为 `false`，表示尚未执行修复验证；修复后 `RegistryVerified: true` 表示关联检查通过。`LauncherVerified` 和 `ProjectOpenVerified` 不会自动设为 true，仍需手动确认。
+命令行输出为 JSON。`RegistryVerified: true` 表示 Windows 打开命令检查通过（诊断模式也会计算）；`Status` 区分“已配置”和“已配置但启动器仍报错”。`LauncherVerified` 和 `ProjectOpenVerified` 不会自动设为 true。
+
+关联已正确时 `-Mode Repair` 会跳过修改（`Action=SkippedAlreadyConfigured`）。确认要重跑官方工具时加 `-ForceRepair`；要记录“启动器仍报错”时加 `-LauncherReportsError`。
 
 ## 技术资料
 

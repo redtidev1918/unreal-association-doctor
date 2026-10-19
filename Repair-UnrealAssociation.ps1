@@ -4,6 +4,8 @@ param(
     [ValidateSet('Diagnose','Repair')][string]$Mode = 'Diagnose',
     [string]$SelectorPath,
     [string[]]$SearchRoot = @(),
+    [switch]$ForceRepair,
+    [switch]$LauncherReportsError,
     [string]$BackupRoot = (Join-Path $env:LOCALAPPDATA 'UnrealAssociationDoctor\Backups')
 )
 $ErrorActionPreference = 'Stop'
@@ -66,12 +68,14 @@ function Get-AssociationState {
     foreach ($name in @('.uproject','.uplugin','Unreal.ProjectFile')) {
         $path = "HKCU:\Software\Classes\$name"
         if (Test-Path -LiteralPath $path) {
-            $overrides += [pscustomobject]@{ Name=$name; Default=(Get-RegistryDefault $path); HasChildren=(@(Get-ChildItem -LiteralPath $path).Count -gt 0) }
+            $preview = Get-RegistryDefault ($path + '\shellex\{8895b1c6-b41f-4c1c-a562-0d564250836f}')
+            $overrides += [pscustomobject]@{ Name=$name; Default=(Get-RegistryDefault $path); HasChildren=(@(Get-ChildItem -LiteralPath $path).Count -gt 0); PreviewHandler=$preview; MonacoPreviewDetected=($preview -eq '{D8034CFA-F34B-41FE-AD45-62FCBB52A6DA}') }
         }
     }
     [pscustomobject]@{
         ExtensionClass = Get-RegistryDefault 'Registry::HKEY_CLASSES_ROOT\.uproject'
         OpenCommand = $command
+        MachineOpenCommand = Get-RegistryDefault 'HKLM:\Software\Classes\Unreal.ProjectFile\shell\open\command'
         TargetExists = [bool]($target -and (Test-Path -LiteralPath $target -PathType Leaf))
         UserOverrides = $overrides
         UserChoice = if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.uproject\UserChoice') {
@@ -80,6 +84,20 @@ function Get-AssociationState {
         LauncherRunning = [bool](Get-Process EpicGamesLauncher -ErrorAction SilentlyContinue)
         PowerToysRunning = [bool](Get-Process PowerToys -ErrorAction SilentlyContinue)
     }
+}
+
+function Test-AssociationConfiguration($State, [string]$ExpectedSelector) {
+    if ($State.ExtensionClass -ne 'Unreal.ProjectFile' -or -not $State.TargetExists) { return $false }
+    if ($State.UserChoice -and $State.UserChoice -ne 'Unreal.ProjectFile') { return $false }
+    if ($State.OpenCommand -notmatch '^"([^\"]+UnrealVersionSelector(?:-Win64-Shipping)?\.exe)"\s+/editor\s+"%1"$') { return $false }
+    if ($ExpectedSelector -and $Matches[1] -ne $ExpectedSelector) { return $false }
+    return $State.OpenCommand -eq $State.MachineOpenCommand
+}
+
+function Get-AssociationStatus([bool]$Configured, [bool]$LauncherError) {
+    if ($Configured -and $LauncherError) { return 'AssociationConfiguredLauncherErrorReported' }
+    if ($Configured) { return 'AssociationConfigured' }
+    return 'AssociationNeedsAttention'
 }
 
 function Invoke-AssociationDoctor {
@@ -92,8 +110,14 @@ function Invoke-AssociationDoctor {
         $selected = (Resolve-Path -LiteralPath $SelectorPath).Path
     } elseif ($candidates.Count -eq 1) { $selected = $candidates[0] }
     else { $selected = $null }
-    $report = [ordered]@{ Mode=$Mode; Candidates=$candidates; Selected=$selected; Before=$before; After=$null; Backup=$null; ToolExitCode=$null; RegistryVerified=$false; LauncherVerified=$false; ProjectOpenVerified=$false }
+    $configured = Test-AssociationConfiguration $before $selected
+    $report = [ordered]@{ Mode=$Mode; Candidates=$candidates; Selected=$selected; Before=$before; After=$null; Backup=$null; ToolExitCode=$null; RegistryVerified=$configured; LauncherVerified=$false; ProjectOpenVerified=$false; LauncherErrorReported=[bool]$LauncherReportsError; Status=(Get-AssociationStatus $configured ([bool]$LauncherReportsError)); Action='None'; VerificationScope='Windows open command only; launcher and project loading are not tested' }
     if ($Mode -eq 'Diagnose') { return [pscustomobject]$report }
+    if ($configured -and -not $ForceRepair) {
+        $report.Action = 'SkippedAlreadyConfigured'
+        Write-Warning 'Windows association already matches. No registry changes made and the official tool was not run. If Epic still reports an error, diagnose with -LauncherReportsError; -ForceRepair only reruns the official tool.'
+        return [pscustomobject]$report
+    }
     if (-not $selected) { throw 'No unique selector found. Use -SelectorPath with the intended launcher executable, or -SearchRoot with its installation directory.' }
     if ([IO.Path]::GetFileName($selected) -notmatch '^UnrealVersionSelector(?:-Win64-Shipping)?\.exe$') { throw 'The selected executable is not named UnrealVersionSelector.' }
     $signature = Get-AuthenticodeSignature -LiteralPath $selected
@@ -138,12 +162,12 @@ function Invoke-AssociationDoctor {
         $p = Start-Process -FilePath $selected -ArgumentList '/fileassociations' -WorkingDirectory (Split-Path $selected) -PassThru
         if (-not $p.WaitForExit(60000)) { throw 'Selector is still running. Inspect its dialog; do not launch another instance. Backups and preserved keys are retained.' }
         $report.ToolExitCode = $p.ExitCode
+        $report.Action = 'OfficialToolExecuted'
         $after = Get-AssociationState
         $report.After = $after
-        $expectedCommand = '"' + $selected + '" /editor "%1"'
-        $machineCommand = Get-RegistryDefault 'HKLM:\Software\Classes\Unreal.ProjectFile\shell\open\command'
-        $report.RegistryVerified = ($p.ExitCode -eq 0 -and $after.ExtensionClass -eq 'Unreal.ProjectFile' -and $after.OpenCommand -eq $expectedCommand -and $machineCommand -eq $expectedCommand -and $after.TargetExists)
-        if (-not $report.RegistryVerified) { throw 'Registry verification failed; see the report and backups. Exit code alone is not proof of repair.' }
+        $report.RegistryVerified = Test-AssociationConfiguration $after $selected
+        $report.Status = Get-AssociationStatus $report.RegistryVerified ([bool]$LauncherReportsError)
+        if ($p.ExitCode -ne 0 -or -not $report.RegistryVerified) { throw 'Official tool failed or registry verification failed; see report.json. Registry state and tool exit code are recorded separately.' }
     } finally {
         $report.After = Get-AssociationState
         $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $backup 'report.json') -Encoding UTF8

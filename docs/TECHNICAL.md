@@ -9,6 +9,8 @@
 | `-Mode` | `Diagnose` | 只读诊断；`Repair` 才尝试修复 |
 | `-SelectorPath` | 选择唯一候选 | 指定关联工具完整路径 |
 | `-SearchRoot` | 空数组 | 补充一个或多个安装根目录 |
+| `-ForceRepair` | 关闭 | 即使关联已通过也重新运行官方工具 |
+| `-LauncherReportsError` | 关闭 | 记录“启动器仍报错”属于已确认的关联之外的问题 |
 | `-BackupRoot` | `$env:LOCALAPPDATA\UnrealAssociationDoctor\Backups` | 设置备份父目录 |
 
 发现来源包括运行中的 Epic 启动器、32/64 位 Epic 注册表、`%ProgramData%\Epic\UnrealEngineLauncher\LauncherInstalled.dat`、现有有效关联及系统 Program Files 目录。候选去重后仅在唯一候选时自动选择。
@@ -19,20 +21,31 @@
 
 ## 修复流程
 
-1. 获取当前关联、候选和选择结果。
-2. 检查 exe 名称、Epic 签名、管理员权限、已运行的修复进程及 UserChoice。
-3. 校验用户覆盖的默认值或打开命令；未知处理程序会使流程停止。这不是对每个子项来源的完整识别。
-4. 导出相关 HKCU/HKLM 项，再将用户级 `.uproject`、`.uplugin`、`Unreal.ProjectFile` 改名保留。
-5. 从所选 exe 的目录启动 `/fileassociations`，最多等待 60 秒。
-6. 验证退出码、有效扩展名映射、有效与 HKLM 打开命令，以及目标是否存在。
+1. 获取当前关联、候选和选择结果，并校验当前关联是否已满足预期。
+2. 已满足预期时不做任何修改，`Action=SkippedAlreadyConfigured`。用户覆盖项（例如 PowerToys 重建的预览子项）存在也不再触发修复，因为再跑一次官方工具不会改变结果。需要时用 `-ForceRepair` 显式重跑。
+3. 检查 exe 名称、Epic 签名、管理员权限、已运行的修复进程及 UserChoice。
+4. 校验用户覆盖的默认值或打开命令；未知处理程序会使流程停止。这不是对每个子项来源的完整识别。
+5. 导出相关 HKCU/HKLM 项，再将用户级 `.uproject`、`.uplugin`、`Unreal.ProjectFile` 改名保留。
+6. 从所选 exe 的目录启动 `/fileassociations`，最多等待 60 秒，`Action=OfficialToolExecuted`。
+7. 验证退出码、有效扩展名映射、有效与 HKLM 打开命令，以及目标是否存在。
 
 不自动关闭启动器、项目、PowerToys 或超时 selector；不修改项目 `EngineAssociation`、UserChoice 哈希和预览开关，也不下载 exe。
 
 ## 验证的范围
 
-`RegistryVerified=true` 要求退出码为 0、有效 `.uproject` 类为 `Unreal.ProjectFile`、有效与系统级打开命令均匹配所选 exe 的 `/editor "%1"`，且目标存在。
+`RegistryVerified=true` 要求有效 `.uproject` 类为 `Unreal.ProjectFile`、有效与系统级打开命令均匹配 `UnrealVersionSelector.exe /editor "%1"`、目标存在，且 UserChoice 未指向其他程序。诊断模式会计入真实结果，不需要先执行修复。
 
-未逐项验证所有右键菜单，也未加载项目。`LauncherVerified` 和 `ProjectOpenVerified` 始终为 false，留待人工确认；诊断模式的全部验证字段也保持 false。
+`Status` 区分三种情况：
+
+| `Status` | 含义 |
+| --- | --- |
+| `AssociationConfigured` | Windows 打开命令检查通过 |
+| `AssociationConfiguredLauncherErrorReported` | 检查通过，但用户明确反馈 Epic 仍报错 |
+| `AssociationNeedsAttention` | 关联检查未通过 |
+
+`LauncherVerified` 和 `ProjectOpenVerified` 始终为 false，因为工具不接管启动器和项目加载，也无法判断你看到的提示来自新窗口还是旧窗口。`VerificationScope` 只说明本次检查覆盖打开命令，不覆盖启动器或项目加载。
+
+`Start-Doctor.ps1` 的菜单 5 会把报告写到 `%LOCALAPPDATA%\UnrealAssociationDoctor\Diagnostics\launcher-*.json`，只读取配置，记录用户反馈的项目打开结果和当时的进程信息。
 
 ## 备份文件
 

@@ -7,9 +7,16 @@ if ($errors.Count) { throw ($errors | Out-String) }
 $wizard = Join-Path (Split-Path $PSScriptRoot) 'Start-Doctor.ps1'
 $null = [System.Management.Automation.Language.Parser]::ParseFile($wizard, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw ($errors | Out-String) }
+# Windows PowerShell 5.1 reads BOM-less files as ANSI, which turns Chinese messages into parse errors.
+foreach ($file in @(Get-ChildItem -LiteralPath (Split-Path $PSScriptRoot -Parent) -Recurse -Filter *.ps1 -File)) {
+    $bytes = [IO.File]::ReadAllBytes($file.FullName)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) { continue }
+    if (@($bytes | Where-Object { $_ -gt 0x7F }).Count) { throw "$($file.FullName) has non-ASCII text but no UTF-8 BOM" }
+}
 $report = & $script -Mode Diagnose | ConvertFrom-Json
 if ($report.Mode -ne 'Diagnose') { throw 'Unexpected mode' }
-if ($report.RegistryVerified -or $report.LauncherVerified -or $report.ProjectOpenVerified) { throw 'Diagnosis must not claim successful repair' }
+if ($report.LauncherVerified -or $report.ProjectOpenVerified) { throw 'Diagnosis must not claim launcher or project verification' }
+if ($report.Action -ne 'None') { throw 'Diagnosis must be read-only' }
 if ($null -ne $report.Backup) { throw 'Diagnosis must not create a backup or modify state' }
 if (-not $report.Before) { throw 'Missing state' }
 Write-Output 'PASS: parser and read-only diagnostic smoke test'

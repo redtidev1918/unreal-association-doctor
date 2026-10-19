@@ -13,11 +13,23 @@ function Show-Diagnosis {
     Write-Host ('发现的关联工具数量：' + @($result.Candidates).Count)
     foreach ($candidate in $result.Candidates) { Write-Host ('  ' + $candidate) }
     Write-Host ('用户覆盖配置数量：' + @($result.Before.UserOverrides).Count)
-    Write-Host '这是检查结果，不代表已经修复。' -ForegroundColor Yellow
+    if ($result.RegistryVerified) {
+        Write-Host 'Windows 打开命令检查通过；不代表 Epic 提示已消失或项目已能打开。' -ForegroundColor Green
+        Write-Host '如果 Epic 仍报错，请选菜单 5 收集持续报错报告。'
+    } else { Write-Host 'Windows 关联需要进一步检查，可选菜单 2 尝试修复。' -ForegroundColor Yellow }
+    foreach ($entry in $result.Before.UserOverrides) {
+        if ($entry.MonacoPreviewDetected) { Write-Host '检测到 Monaco 预览注册项：与社区冲突案例相符，但尚不能证明它是根因。' -ForegroundColor Yellow; break }
+    }
     return $result
 }
 
 function Start-Repair {
+    $diagnosis = Show-Diagnosis
+    if ($diagnosis.RegistryVerified) {
+        Write-Host 'Windows 关联配置已经正确，已跳过重复修复，也不申请管理员权限。'
+        Write-Host '如果 Epic 仍提示错误，请选 5；如果项目打不开，请记录实际打开报错。'
+        return
+    }
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         Write-Host '即将打开管理员修复窗口，请在 Windows 权限提示中选择“是”。'
@@ -28,7 +40,6 @@ function Start-Repair {
         Write-Host '请在新打开的窗口中继续；原窗口不会宣称修复成功。'
         return
     }
-    $diagnosis = Show-Diagnosis
     $candidates = @($diagnosis.Candidates)
     $selected = $diagnosis.Selected
     if (-not $selected) {
@@ -51,12 +62,37 @@ function Start-Repair {
     $result = & $core -Mode Repair -SelectorPath $selected | ConvertFrom-Json
     if ($result.RegistryVerified) {
         Write-Host 'Windows 文件关联检查已通过。' -ForegroundColor Green
-        Write-Host ('本次备份：' + $result.Backup)
+        if ($result.Backup) { Write-Host ('本次备份：' + $result.Backup) }
         Write-Host '还需要完成：'
         Write-Host '1. 从系统托盘完全退出 Epic，再重新打开“虚幻引擎 → 库”。'
         Write-Host '2. 双击一个已知正常的 .uproject，确认可以打开。'
-        Write-Host '若仍有提示，选择菜单 1 重新检查，并保留报错原文。'
+        Write-Host '若仍有提示，选择菜单 5 收集持续报错报告。'
     } else { throw '关联检查未通过，请查看备份中的 report.json。' }
+}
+
+function Export-LauncherReport {
+    Write-Host '此流程记录你反馈的 Epic 持续报错，只读取配置，不执行修复。'
+    $answer = Read-Host '双击 .uproject 是否能正常打开？Y=能，N=不能，回车=未测试'
+    $projectResult = 'NotTested'
+    if ($answer -eq 'Y') { $projectResult = 'UserReportedWorking' }
+    if ($answer -eq 'N') { $projectResult = 'UserReportedFailure' }
+    $result = & $core -Mode Diagnose -LauncherReportsError | ConvertFrom-Json
+    $result | Add-Member -NotePropertyName UserReportedProjectOpen -NotePropertyValue $projectResult
+    $processes = @(Get-Process EpicGamesLauncher,UnrealVersionSelector -ErrorAction SilentlyContinue | ForEach-Object {
+        [pscustomobject]@{ Name=$_.ProcessName; Id=$_.Id; Path=$_.Path; Version=if ($_.Path) { (Get-Item -LiteralPath $_.Path).VersionInfo.FileVersion } else { $null } }
+    })
+    $result | Add-Member -NotePropertyName Processes -NotePropertyValue $processes
+    $result | Add-Member -NotePropertyName CapturedAt -NotePropertyValue ([DateTimeOffset]::Now.ToString('o'))
+    $directory = Join-Path $env:LOCALAPPDATA 'UnrealAssociationDoctor\Diagnostics'
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    $file = Join-Path $directory ('launcher-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '.json')
+    $result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $file -Encoding UTF8
+    if ($result.RegistryVerified) {
+        Write-Host 'Windows 打开命令检查通过；已单独记录“用户反馈 Epic 仍报错”。根因尚未确认。' -ForegroundColor Yellow
+    } else { Write-Host 'Windows 关联检查未通过，可按诊断结果尝试修复。' }
+    Write-Host ('报告已保存：' + $file)
+    Write-Host '报告仅保存在本机，没有上传。分享前检查其中的用户名和安装路径。'
+    Write-Host '若检测到 Monaco 预览项，可参考菜单 4 的 PowerToys 方案。不要仅因弹窗就反复修复。'
 }
 
 function Show-Failure($failure) {
@@ -78,6 +114,7 @@ while ($true) {
     Write-Host '2. 自动备份并修复（需要管理员权限）'
     Write-Host '3. 打开备份目录'
     Write-Host '4. 打开常见问题说明'
+    Write-Host '5. Epic 仍报错：收集诊断报告（不修改关联）'
     Write-Host '0. 退出'
     $choice = Read-Host '请输入数字'
     if ($choice -eq '0') { break }
@@ -90,7 +127,8 @@ while ($true) {
                 else { Write-Host '目前还没有备份。修复进入备份阶段后才会创建。' }
             }
             '4' { Start-Process notepad.exe -ArgumentList ('"' + (Join-Path $PSScriptRoot 'docs\TROUBLESHOOTING.md') + '"') }
-            default { Write-Host '请输入 0 到 4。' }
+            '5' { Export-LauncherReport }
+            default { Write-Host '请输入 0 到 5。' }
         }
     } catch { Show-Failure $_ }
 }

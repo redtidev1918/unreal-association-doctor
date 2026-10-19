@@ -48,15 +48,19 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 
 ## 检查通过，Epic 仍提示修复
 
-关闭旧修复窗口，从托盘完整退出 Epic，再重新打开引擎库。这能排除旧窗口或未重新加载配置的影响，但不是所有错误的确定原因。
+这时关联本身已经正确，再点 Epic 的“修复”通常不会改变结果。先按下面顺序排除：
 
-仍失败时，保存新的诊断结果：
+1. 关闭旧的修复窗口（任务管理器里不应还有 `UnrealVersionSelector.exe`），从托盘完整退出 Epic，再打开“虚幻引擎 → 库”。
+2. 双击一个已知正常的 `.uproject`。**能打开就说明关联可用**，剩下的只是启动器的检查仍在报错。
+3. 仍不行时用菜单 **5** 收集报告，或运行：
 
 ```powershell
-.\Repair-UnrealAssociation.ps1 | Out-File -FilePath '.\diagnosis.txt' -Encoding utf8
+.\Repair-UnrealAssociation.ps1 -LauncherReportsError | Out-File -FilePath '.\diagnosis.json' -Encoding utf8
 ```
 
-记录触发操作、完整报错，以及 `Selected`、`Before.OpenCommand`、`Before.UserOverrides` 和本次修复的 `report.json`。分享前检查本机用户名和目录路径。
+报告会记录 `Status`、`Before.OpenCommand`、`Before.UserOverrides`、当时的进程和你反馈的项目打开结果。分享前检查本机用户名和目录路径。
+
+工具默认不会在关联已通过时再次运行官方修复程序（`Action=SkippedAlreadyConfigured`），避免反复改名用户覆盖项却没有进展。确认要重跑时才用 `-ForceRepair`。
 
 ## PowerToys 一定有冲突吗？
 
