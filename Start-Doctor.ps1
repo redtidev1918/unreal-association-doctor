@@ -17,8 +17,8 @@ function Show-Diagnosis {
         Write-Host 'Windows 打开命令检查通过；不代表 Epic 提示已消失或项目已能打开。' -ForegroundColor Green
         Write-Host '如果 Epic 仍报错，请选菜单 5 收集持续报错报告。'
     } else { Write-Host 'Windows 关联需要进一步检查，可选菜单 2 尝试修复。' -ForegroundColor Yellow }
-    foreach ($entry in $result.Before.UserOverrides) {
-        if ($entry.MonacoPreviewDetected) { Write-Host '检测到 Monaco 预览注册项：与社区冲突案例相符，但尚不能证明它是根因。' -ForegroundColor Yellow; break }
+    if ($result.Before.MonacoPreviewKeys) {
+        Write-Host ('检测到 Monaco 预览注册项：' + ($result.Before.MonacoPreviewKeys -join '、') + '；与社区冲突案例相符，但不能证明它是根因。') -ForegroundColor Yellow
     }
     return $result
 }

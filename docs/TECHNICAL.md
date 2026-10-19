@@ -47,6 +47,12 @@
 
 `Start-Doctor.ps1` 的菜单 5 会把报告写到 `%LOCALAPPDATA%\UnrealAssociationDoctor\Diagnostics\launcher-*.json`，只读取配置，记录用户反馈的项目打开结果和当时的进程信息。
 
+## PowerToys 预览项
+
+`Before.UserOverrides` 逐项记录 `.uproject`、`.uplugin`、`Unreal.ProjectFile` 的用户级覆盖，含 `PreviewHandler` 值。命中 PowerToys Monaco 的处理程序 `{D8034CFA-F34B-41FE-AD45-62FCBB52A6DA}` 时该项 `MonacoPreviewDetected` 为 true，`Before.MonacoPreviewKeys` 汇总受影响的扩展名。
+
+这类子项可能被 PowerToys 重新创建。本工具不删除它，也不修改 PowerToys 开关：修复时改名保留（可恢复），关联已正确时直接跳过。关闭 Monaco 预览属于 PowerToys 界面操作，会影响其他源码文件预览，需要你自己决定。
+
 ## 备份文件
 
 每次使用时间和随机后缀创建独立子目录。

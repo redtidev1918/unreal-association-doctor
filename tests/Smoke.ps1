@@ -13,6 +13,13 @@ foreach ($file in @(Get-ChildItem -LiteralPath (Split-Path $PSScriptRoot -Parent
     if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) { continue }
     if (@($bytes | Where-Object { $_ -gt 0x7F }).Count) { throw "$($file.FullName) has non-ASCII text but no UTF-8 BOM" }
 }
+# Repair may export and rename entries, never delete user registry configuration.
+foreach ($file in @($script, $wizard)) {
+    $text = [IO.File]::ReadAllText($file)
+    if ($text -match 'reg(?:\.exe)?\s+delete|DeleteSubKey|Remove-ItemProperty[^\r\n]*(?:HKCU|HKLM)|Remove-Item[^\r\n]*(?:HKCU|HKLM|Software\\Classes)') {
+        throw "Registry deletion must not appear in $file"
+    }
+}
 $report = & $script -Mode Diagnose | ConvertFrom-Json
 if ($report.Mode -ne 'Diagnose') { throw 'Unexpected mode' }
 if ($report.LauncherVerified -or $report.ProjectOpenVerified) { throw 'Diagnosis must not claim launcher or project verification' }

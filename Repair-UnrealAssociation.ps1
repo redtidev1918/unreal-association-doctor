@@ -78,6 +78,7 @@ function Get-AssociationState {
         MachineOpenCommand = Get-RegistryDefault 'HKLM:\Software\Classes\Unreal.ProjectFile\shell\open\command'
         TargetExists = [bool]($target -and (Test-Path -LiteralPath $target -PathType Leaf))
         UserOverrides = $overrides
+        MonacoPreviewKeys = @($overrides | Where-Object MonacoPreviewDetected | ForEach-Object Name)
         UserChoice = if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.uproject\UserChoice') {
             (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.uproject\UserChoice').ProgId
         } else { $null }
