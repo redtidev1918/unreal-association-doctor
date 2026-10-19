@@ -20,6 +20,19 @@ Epic 提示 `Project files not associated`，点击修复又出现 `Couldn't upd
 
 ## 快速开始
 
+### 推荐：双击启动，无需输入命令
+
+1. 点击 [下载 ZIP](https://github.com/redtidev1918/unreal-association-doctor/archive/refs/heads/main.zip)，**完整解压**，不要在压缩包内直接运行。
+2. 双击 **`Start.cmd`**，看到中文菜单后输入 **1** 检查问题。
+3. 输入 **2** 修复；Windows 请求管理员权限时选择“是”，在新窗口按提示确认。多个安装会让你选择，不会乱选版本。
+4. 看到“Windows 文件关联检查已通过”后，完整退出并重新打开 Epic，再双击项目验证。
+
+菜单 **3** 可以打开备份目录，**4** 打开排错说明，**0** 退出。窗口会保留错误信息，不会一闪而过。修复不会自动关闭你的项目或启动器。
+
+如果双击提示禁止运行脚本或文件被阻止，参见[脚本运行问题](docs/TROUBLESHOOTING.md#powershell-不允许运行脚本)。受组织管理的电脑请遵循管理员策略。
+
+### 命令行方式（进阶）
+
 需要 **Windows、64 位 Windows PowerShell 5.1 或 PowerShell 7**，以及已经安装的 Epic 关联工具。不会自动下载安装 Unreal Engine。
 
 ### 1. 下载并打开目录
@@ -30,7 +43,7 @@ Epic 提示 `Project files not associated`，点击修复又出现 `Couldn't upd
 git clone https://github.com/redtidev1918/unreal-association-doctor.git
 ```
 
-仓库为私有时，需要有访问权限的 GitHub 账号。
+公开仓库可直接下载，无需 GitHub 账号。
 
 从开始菜单打开 **Windows PowerShell**（不要选名称带 `x86` 的版本），进入解压或克隆后的目录。下面是示例，请换成你的实际路径：
 

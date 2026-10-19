@@ -4,6 +4,9 @@ $tokens = $null
 $errors = $null
 $null = [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw ($errors | Out-String) }
+$wizard = Join-Path (Split-Path $PSScriptRoot) 'Start-Doctor.ps1'
+$null = [System.Management.Automation.Language.Parser]::ParseFile($wizard, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
 $report = & $script -Mode Diagnose | ConvertFrom-Json
 if ($report.Mode -ne 'Diagnose') { throw 'Unexpected mode' }
 if ($report.RegistryVerified -or $report.LauncherVerified -or $report.ProjectOpenVerified) { throw 'Diagnosis must not claim successful repair' }
